@@ -1,0 +1,28 @@
+{
+  "name": "react-agent",
+  "version": "1.0.0",
+  "description": "ReAct Agent with Web Search and Google Calendar using LangGraph",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/openai": "^0.3.0",
+    "@langchain/tavily": "^0.1.0",
+    "chrono-node": "^2.9.0",
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^9.7.0",
+    "googleapis": "^131.0.0",
+    "langchain": "^0.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
