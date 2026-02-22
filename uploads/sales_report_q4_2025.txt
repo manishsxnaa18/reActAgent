@@ -1,0 +1,64 @@
+ACME Corporation - Q4 2025 Sales Performance
+
+Regional Sales Data:
+
+North America:
+  Q1: $2.5M
+  Q2: $2.8M
+  Q3: $3.1M
+  Q4: $3.6M
+  Total: $12.0M (+18% YoY)
+
+Europe:
+  Q1: $1.8M
+  Q2: $2.1M
+  Q3: $2.3M
+  Q4: $2.7M
+  Total: $8.9M (+22% YoY)
+
+Asia Pacific:
+  Q1: $1.2M
+  Q2: $1.5M
+  Q3: $1.8M
+  Q4: $2.2M
+  Total: $6.7M (+35% YoY)
+
+Product Performance:
+
+Top Selling Products:
+1. ACME DataGuard Pro - $9.2M (34% of revenue)
+2. ACME Intelligence Suite - $7.8M (29% of revenue)
+3. ACME CloudSync Business - $5.6M (21% of revenue)
+4. ACME SecureVault - $3.0M (11% of revenue)
+5. ACME AutoML Platform - $1.4M (5% of revenue)
+
+Customer Acquisition:
+- New Customers: 145
+- Churned Customers: 12
+- Net Growth: +133 customers
+- Customer Retention Rate: 94.2%
+
+Key Performance Indicators:
+- Average Deal Size: $35,000
+- Sales Cycle Length: 42 days (down from 51 days in Q3)
+- Win Rate: 68%
+- Customer Satisfaction Score: 4.7/5.0
+
+Top Sales Representatives:
+1. Sarah Johnson - $1.2M in sales
+2. Michael Chen - $980K in sales
+3. Emily Rodriguez - $875K in sales
+4. David Kim - $820K in sales
+5. Jessica Taylor - $760K in sales
+
+Forecast for Q1 2026:
+- Projected Revenue: $10.5M
+- Pipeline Value: $32M
+- Expected Close Rate: 65%
+- New Product Launches: 2 (ACME AI Assistant, ACME Compliance Suite)
+
+Notes:
+- Strong performance in enterprise segment
+- Growing demand for AI solutions
+- Expansion into healthcare and finance verticals showing promise
+- Partnership with CloudTech Inc. driving 15% of new business

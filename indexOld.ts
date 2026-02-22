@@ -23,7 +23,7 @@ import {
 
 // Initialize the LLM
 const llm = new ChatOpenAI({
-  model: "gpt-4o",
+  model: process.env.DEFAULT_MODEL || "gpt-5-mini",
   temperature: 0,
 });
 

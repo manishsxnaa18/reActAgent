@@ -5,6 +5,12 @@ import { HumanMessage, BaseMessage } from "@langchain/core/messages";
 import { 
   setCredentials 
 } from "./tools/googleCalendar";
+import "./instrumentation";
+import { CallbackHandler } from "@langfuse/langchain";
+
+ 
+// Initialize the Langfuse CallbackHandler
+const langfuseHandler = new CallbackHandler();
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -42,7 +48,9 @@ async function start() {
         messages: [new HumanMessage(input)] as BaseMessage[]
       },
       {
-        configurable: { thread_id: threadId }
+        configurable: { thread_id: threadId },
+        callbacks: [langfuseHandler],
+        metadata: {langfuseSessionId: threadId}
       }
     );
 

@@ -3,7 +3,11 @@ import chrono from "chrono-node";
 import {
   getCalendarEvents,
   getEventsForDate,
-  createCalendarEvent
+  createCalendarEvent,
+  cancelCalendarEvent,
+  addAttendeesToEvent,
+  sendNotificationToAttendees,
+  updateCalendarEventDetails
 } from "../tools/googleCalendar";
 
 import { z } from "zod";
@@ -17,6 +21,34 @@ const createEventSchema = z.object({
 });
 
 type CreateEventInput = z.infer<typeof createEventSchema>;
+
+const eventIdentifierSchema = z.object({
+  eventIdentifier: z.string().describe("Google Calendar event ID or a keyword to search for the event"),
+  notifyAttendees: z.boolean().optional()
+});
+
+const addAttendeesSchema = z.object({
+  eventIdentifier: z.string(),
+  attendeeEmails: z.array(z.string().email()).min(1),
+  notifyAttendees: z.boolean().optional()
+});
+
+const notifyAttendeesSchema = z.object({
+  eventIdentifier: z.string(),
+  message: z.string(),
+  subject: z.string().optional()
+});
+
+const updateEventSchema = z.object({
+  eventIdentifier: z.string(),
+  title: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  location: z.string().optional(),
+  description: z.string().optional(),
+  attendeeEmails: z.array(z.string().email()).optional(),
+  notifyAttendees: z.boolean().optional()
+});
 
 export const getUpcomingEventsTool = tool(
   async () => {
@@ -54,6 +86,54 @@ export const createEventTool = tool(
     description:
       "Create a calendar event. Requires title, startTime (ISO), endTime (ISO).",
     schema: createEventSchema as any
+  }
+);
+
+export const cancelEventTool = tool(
+  async (input: z.infer<typeof eventIdentifierSchema>) => {
+    return await cancelCalendarEvent(input.eventIdentifier, input.notifyAttendees ?? true);
+  },
+  {
+    name: "cancel_calendar_event",
+    description: "Cancel an existing calendar event using its ID or keywords. Optionally notify attendees.",
+    schema: eventIdentifierSchema as any
+  }
+);
+
+export const addAttendeesTool = tool(
+  async (input: z.infer<typeof addAttendeesSchema>) => {
+    return await addAttendeesToEvent(
+      input.eventIdentifier,
+      input.attendeeEmails,
+      input.notifyAttendees ?? true
+    );
+  },
+  {
+    name: "add_attendees_to_event",
+    description: "Add one or more attendees to an existing calendar event and optionally notify them.",
+    schema: addAttendeesSchema as any
+  }
+);
+
+export const notifyAttendeesTool = tool(
+  async (input: z.infer<typeof notifyAttendeesSchema>) => {
+    return await sendNotificationToAttendees(input.eventIdentifier, input.message, input.subject);
+  },
+  {
+    name: "notify_event_attendees",
+    description: "Send an email notification to all attendees of an event with an optional subject line.",
+    schema: notifyAttendeesSchema as any
+  }
+);
+
+export const updateEventTool = tool(
+  async (input: z.infer<typeof updateEventSchema>) => {
+    return await updateCalendarEventDetails(input);
+  },
+  {
+    name: "update_calendar_event",
+    description: "Update calendar event fields like date/time, title, location, description, or attendees.",
+    schema: updateEventSchema as any
   }
 );
 

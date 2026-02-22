@@ -1,0 +1,54 @@
+ACME Corporation
+Balance Sheet
+As of December 31, 2025
+
+ASSETS
+Current Assets:
+Cash and Cash Equivalents: $12,500,000
+Accounts Receivable: $8,200,000
+Inventory: $4,300,000
+Prepaid Expenses: $750,000
+Total Current Assets: $25,750,000
+
+Fixed Assets:
+Property and Equipment: $15,000,000
+Less: Accumulated Depreciation: ($5,500,000)
+Net Property and Equipment: $9,500,000
+
+Intangible Assets:
+Patents and Trademarks: $3,200,000
+Goodwill: $2,800,000
+Total Intangible Assets: $6,000,000
+
+TOTAL ASSETS: $41,250,000
+
+LIABILITIES
+Current Liabilities:
+Accounts Payable: $4,800,000
+Short-term Debt: $2,000,000
+Accrued Expenses: $1,500,000
+Total Current Liabilities: $8,300,000
+
+Long-term Liabilities:
+Long-term Debt: $10,000,000
+Deferred Tax Liabilities: $1,200,000
+Total Long-term Liabilities: $11,200,000
+
+TOTAL LIABILITIES: $19,500,000
+
+SHAREHOLDERS' EQUITY
+Common Stock: $5,000,000
+Retained Earnings: $16,750,000
+Total Shareholders' Equity: $21,750,000
+
+TOTAL LIABILITIES AND EQUITY: $41,250,000
+
+Key Financial Ratios:
+Current Ratio: 3.1
+Debt-to-Equity Ratio: 0.55
+Return on Assets: 18.5%
+Return on Equity: 35.2%
+
+Revenue Growth (2025 vs 2024): +23%
+Net Profit Margin: 14.8%
+Operating Margin: 22.1%

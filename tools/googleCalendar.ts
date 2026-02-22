@@ -3,7 +3,7 @@
  * Allows the agent to read events from user's Google Calendar
  */
 import "dotenv/config";
-import { google } from "googleapis";
+import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 
 // Initialize OAuth2 client
@@ -158,5 +158,202 @@ Link: ${response.data.htmlLink}`;
     console.error("Error creating calendar event:", error);
     return "Error creating calendar event. Please check your permissions.";
   }
+}
+
+type CalendarEvent = calendar_v3.Schema$Event;
+
+function getCalendarClient() {
+  return google.calendar({ version: "v3", auth: oauth2Client });
+}
+
+async function resolveEventByIdentifier(identifier: string): Promise<CalendarEvent | null> {
+  const calendar = getCalendarClient();
+
+  if (!identifier) {
+    return null;
+  }
+
+  try {
+    const direct = await calendar.events.get({ calendarId: "primary", eventId: identifier });
+    if (direct.data) {
+      return direct.data;
+    }
+  } catch (error: any) {
+    if (error?.code !== 404) {
+      console.warn("Error fetching event by ID:", error);
+    }
+  }
+
+  const now = new Date();
+  const pastWindow = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const futureWindow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+  const search = await calendar.events.list({
+    calendarId: "primary",
+    timeMin: pastWindow.toISOString(),
+    timeMax: futureWindow.toISOString(),
+    maxResults: 100,
+    q: identifier,
+    singleEvents: true,
+    orderBy: "startTime"
+  });
+
+  return search.data.items && search.data.items.length > 0 ? search.data.items[0] : null;
+}
+
+function formatEventSummary(event: CalendarEvent): string {
+  const start = event.start?.dateTime || event.start?.date || "Unknown start";
+  const title = event.summary || "Untitled event";
+  return `${title} (${start})`;
+}
+
+export async function cancelCalendarEvent(
+  eventIdentifier: string,
+  notifyAttendees: boolean = true
+): Promise<string> {
+  const calendar = getCalendarClient();
+  const event = await resolveEventByIdentifier(eventIdentifier);
+
+  if (!event || !event.id) {
+    return `Could not find an event matching "${eventIdentifier}".`;
+  }
+
+  await calendar.events.delete({
+    calendarId: "primary",
+    eventId: event.id,
+    sendUpdates: notifyAttendees ? "all" : "none"
+  });
+
+  return `Cancelled event: ${formatEventSummary(event)}${notifyAttendees ? " and notified attendees." : "."}`;
+}
+
+export async function addAttendeesToEvent(
+  eventIdentifier: string,
+  attendeeEmails: string[],
+  notifyAttendees: boolean = true
+): Promise<string> {
+  if (!attendeeEmails || attendeeEmails.length === 0) {
+    return "Please provide at least one attendee email.";
+  }
+
+  const calendar = getCalendarClient();
+  const event = await resolveEventByIdentifier(eventIdentifier);
+
+  if (!event || !event.id) {
+    return `Could not find an event matching "${eventIdentifier}".`;
+  }
+
+  const existingAttendees = event.attendees || [];
+  const newAttendees = attendeeEmails.map((email) => ({ email }));
+
+  const mergedAttendees = [...existingAttendees];
+  for (const attendee of newAttendees) {
+    if (!mergedAttendees.some((existing) => existing.email === attendee.email)) {
+      mergedAttendees.push(attendee);
+    }
+  }
+
+  await calendar.events.patch({
+    calendarId: "primary",
+    eventId: event.id,
+    requestBody: {
+      attendees: mergedAttendees
+    },
+    sendUpdates: notifyAttendees ? "all" : "none"
+  });
+
+  return `Added attendees to ${formatEventSummary(event)}: ${attendeeEmails.join(", ")}${notifyAttendees ? " (notifications sent)." : "."}`;
+}
+
+export async function sendNotificationToAttendees(
+  eventIdentifier: string,
+  message: string,
+  subject?: string
+): Promise<string> {
+  if (!message) {
+    return "Notification message cannot be empty.";
+  }
+
+  const calendar = getCalendarClient();
+  const event = await resolveEventByIdentifier(eventIdentifier);
+
+  if (!event || !event.id) {
+    return `Could not find an event matching "${eventIdentifier}".`;
+  }
+
+  const timestamp = new Date().toISOString();
+  const appendedDescription = `${event.description || ""}\n\nNotification (${timestamp}${subject ? ` - ${subject}` : ""}):\n${message}`.trim();
+
+  await calendar.events.patch({
+    calendarId: "primary",
+    eventId: event.id,
+    requestBody: {
+      description: appendedDescription
+    },
+    sendUpdates: "all"
+  });
+
+  return `Sent notification to attendees of ${formatEventSummary(event)}.`;
+}
+
+export interface UpdateCalendarEventInput {
+  eventIdentifier: string;
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  description?: string;
+  attendeeEmails?: string[];
+  notifyAttendees?: boolean;
+}
+
+export async function updateCalendarEventDetails(
+  input: UpdateCalendarEventInput
+): Promise<string> {
+  const {
+    eventIdentifier,
+    title,
+    startTime,
+    endTime,
+    location,
+    description,
+    attendeeEmails,
+    notifyAttendees = true
+  } = input;
+
+  const calendar = getCalendarClient();
+  const event = await resolveEventByIdentifier(eventIdentifier);
+
+  if (!event || !event.id) {
+    return `Could not find an event matching "${eventIdentifier}".`;
+  }
+
+  const requestBody: calendar_v3.Schema$Event = {};
+
+  if (title) requestBody.summary = title;
+  if (startTime) {
+    requestBody.start = { dateTime: startTime, timeZone: "UTC" };
+  }
+  if (endTime) {
+    requestBody.end = { dateTime: endTime, timeZone: "UTC" };
+  }
+  if (location) requestBody.location = location;
+  if (description) requestBody.description = description;
+  if (attendeeEmails && attendeeEmails.length > 0) {
+    requestBody.attendees = attendeeEmails.map((email) => ({ email }));
+  }
+
+  if (Object.keys(requestBody).length === 0) {
+    return "No updates were provided.";
+  }
+
+  await calendar.events.patch({
+    calendarId: "primary",
+    eventId: event.id,
+    requestBody,
+    sendUpdates: notifyAttendees ? "all" : "none"
+  });
+
+  return `Updated event: ${formatEventSummary(event)}.`;
 }
 

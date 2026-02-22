@@ -1,0 +1,56 @@
+ACME Corporation - Product Catalog
+2026 Edition
+
+=== PRODUCT LINE: ENTERPRISE SOFTWARE ===
+
+1. ACME DataGuard Pro
+   - Price: $15,000/year
+   - Features: Enterprise data backup, 256-bit encryption, automated scheduling
+   - Storage: Up to 100TB
+   - Support: 24/7 premium support included
+   - Target: Large enterprises with critical data needs
+
+2. ACME CloudSync Business
+   - Price: $8,500/year
+   - Features: Multi-cloud synchronization, real-time backup, compliance reporting
+   - Storage: Up to 50TB
+   - Support: Business hours support
+   - Target: Mid-size businesses
+
+3. ACME SecureVault
+   - Price: $5,000/year
+   - Features: Document management, access controls, audit trails
+   - Storage: Up to 10TB
+   - Support: Email and chat support
+   - Target: Small businesses and startups
+
+=== PRODUCT LINE: AI SOLUTIONS ===
+
+4. ACME Intelligence Suite
+   - Price: $25,000/year
+   - Features: Custom AI models, predictive analytics, NLP processing
+   - Integration: API and SDK available
+   - Support: Dedicated account manager
+   - Target: Enterprises requiring AI capabilities
+
+5. ACME AutoML Platform
+   - Price: $12,000/year
+   - Features: No-code ML model training, deployment automation
+   - Models: Classification, regression, forecasting
+   - Support: Online training and documentation
+   - Target: Data teams without ML expertise
+
+=== PROFESSIONAL SERVICES ===
+
+6. Implementation Services
+   - Setup and configuration: $200/hour
+   - Data migration: $250/hour
+   - Custom integration: $300/hour
+   - Minimum engagement: 40 hours
+
+7. Training Programs
+   - Basic user training: $2,500 (1 day)
+   - Advanced admin training: $5,000 (2 days)
+   - Custom workshops: Contact sales
+
+For enterprise volume discounts or custom solutions, contact: sales@acmecorp.com
