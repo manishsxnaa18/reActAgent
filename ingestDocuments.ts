@@ -29,7 +29,9 @@ async function initializeSystem() {
     console.error("❌ Failed to initialize RAG system:", error);
     console.log("\n⚠️  Make sure you have set the following environment variables:");
     console.log("   - OPENAI_API_KEY");
-    console.log("   - PINECONE_API_KEY");
+    console.log("   - VECTOR_STORE_PROVIDER (pinecone|qdrant)");
+    console.log("   - PINECONE_API_KEY (if using pinecone)");
+    console.log("   - QDRANT_URL (if using qdrant, default: http://localhost:6333)");
     process.exit(1);
   }
 }

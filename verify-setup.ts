@@ -40,12 +40,38 @@ check(
   "OPENAI_API_KEY is missing or invalid. Get one from https://platform.openai.com/api-keys"
 );
 
-check(
-  "Pinecone API Key",
-  !!process.env.PINECONE_API_KEY && process.env.PINECONE_API_KEY.length > 0,
-  "Pinecone API key is set",
-  "PINECONE_API_KEY is missing. Get one from https://www.pinecone.io/"
-);
+const vectorProvider = (process.env.VECTOR_STORE_PROVIDER || "pinecone").toLowerCase();
+results.push({
+  name: "Vector Store Provider",
+  status: vectorProvider === "qdrant" || vectorProvider === "pinecone" ? "✅" : "⚠️",
+  message:
+    vectorProvider === "qdrant" || vectorProvider === "pinecone"
+      ? `Using provider: ${vectorProvider}`
+      : `Unknown provider: ${vectorProvider} (defaulting to pinecone)`
+});
+
+if (vectorProvider === "qdrant") {
+  checkOptional(
+    "Qdrant URL",
+    !!process.env.QDRANT_URL,
+    `Qdrant URL: ${process.env.QDRANT_URL}`,
+    "QDRANT_URL not set (defaulting to http://localhost:6333)"
+  );
+
+  checkOptional(
+    "Qdrant API Key",
+    !!process.env.QDRANT_API_KEY,
+    "Qdrant API key is set",
+    "QDRANT_API_KEY not set (optional for local Qdrant)"
+  );
+} else {
+  check(
+    "Pinecone API Key",
+    !!process.env.PINECONE_API_KEY && process.env.PINECONE_API_KEY.length > 0,
+    "Pinecone API key is set",
+    "PINECONE_API_KEY is missing. Get one from https://www.pinecone.io/"
+  );
+}
 
 check(
   "Tavily API Key",
@@ -54,7 +80,7 @@ check(
   "TAVILY_API_KEY is missing or invalid. Get one from https://tavily.com/api/"
 );
 
-// Check optional environment variables
+// Optional Google Calendar tokens
 checkOptional(
   "Google Access Token",
   !!process.env.GOOGLE_ACCESS_TOKEN,

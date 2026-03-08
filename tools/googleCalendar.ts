@@ -13,6 +13,14 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/oauth2callback"
 );
 
+const CALENDAR_SCOPES = [
+  "https://www.googleapis.com/auth/calendar",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly"
+];
+
+export const googleOAuthClient = oauth2Client;
+
 /**
  * Set credentials for the OAuth2 client
  */
@@ -21,6 +29,41 @@ export function setCredentials(accessToken: string, refreshToken: string) {
     access_token: accessToken,
     refresh_token: refreshToken,
   });
+}
+
+export function getCalendarAuthUrl(): string {
+  return oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: CALENDAR_SCOPES
+  });
+}
+
+export async function exchangeAuthCode(code: string): Promise<{ accessToken: string; refreshToken?: string }>{
+  const { tokens } = await oauth2Client.getToken(code);
+  if (tokens.access_token || tokens.refresh_token) {
+    oauth2Client.setCredentials(tokens);
+  }
+  return {
+    accessToken: tokens.access_token || "",
+    refreshToken: tokens.refresh_token ?? undefined
+  };
+}
+
+function isInvalidGrantError(error: any): boolean {
+  console.log('isInvalidGrantError');
+  const message = typeof error?.message === "string" ? error.message : "";
+  const errorCode = error?.response?.data?.error || error?.response?.data?.error_description;
+  return message.includes("invalid_grant") || String(errorCode).includes("invalid_grant");
+}
+
+function getCalendarReauthMessage(): string {
+  const mode = (process.env.CALENDAR_REAUTH_MODE || "cli").toLowerCase();
+  if (mode === "app") {
+    return "Google Calendar authorization expired. Please re-authenticate in the app to continue.";
+  }
+
+  return `Google Calendar authorization expired. Re-auth required.\nOpen this URL and grant access:\n${getCalendarAuthUrl()}\n\nThen reply with: calendar_auth <code>`;
 }
 
 /**
@@ -67,6 +110,9 @@ export async function getCalendarEvents(
 
     return formattedEvents;
   } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
     console.error("Error fetching calendar events:", error);
     return "Error fetching calendar events. Please check your Google Calendar permissions.";
   }
@@ -112,6 +158,9 @@ export async function getEventsForDate(date: string): Promise<string> {
 
     return formattedEvents;
   } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
     console.error("Error fetching events for date:", error);
     return "Error fetching events for the specified date.";
   }
@@ -154,6 +203,9 @@ export async function createCalendarEvent(title: string, startTime: string, endT
 Title: ${response.data.summary}
 Link: ${response.data.htmlLink}`;
   } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
     console.log({error})
     console.error("Error creating calendar event:", error);
     return "Error creating calendar event. Please check your permissions.";
@@ -168,22 +220,22 @@ function getCalendarClient() {
 
 async function resolveEventByIdentifier(identifier: string): Promise<CalendarEvent | null> {
   const calendar = getCalendarClient();
-
   if (!identifier) {
     return null;
   }
-
+  //console.log('resolveEventByIdentifier:identifier',{identifier});
   try {
     const direct = await calendar.events.get({ calendarId: "primary", eventId: identifier });
     if (direct.data) {
       return direct.data;
     }
   } catch (error: any) {
+    //console.log('resolveEventByIdentifier:error',{error});
     if (error?.code !== 404) {
       console.warn("Error fetching event by ID:", error);
     }
   }
-
+ console.log('resolveEventByIdentifier:after get events')
   const now = new Date();
   const pastWindow = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const futureWindow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
@@ -197,7 +249,7 @@ async function resolveEventByIdentifier(identifier: string): Promise<CalendarEve
     singleEvents: true,
     orderBy: "startTime"
   });
-
+  //console.log('resolveEventByIdentifier:search results',{search})
   return search.data.items && search.data.items.length > 0 ? search.data.items[0] : null;
 }
 
@@ -211,20 +263,28 @@ export async function cancelCalendarEvent(
   eventIdentifier: string,
   notifyAttendees: boolean = true
 ): Promise<string> {
-  const calendar = getCalendarClient();
-  const event = await resolveEventByIdentifier(eventIdentifier);
+  try {
+    const calendar = getCalendarClient();
+    const event = await resolveEventByIdentifier(eventIdentifier);
 
-  if (!event || !event.id) {
-    return `Could not find an event matching "${eventIdentifier}".`;
+    if (!event || !event.id) {
+      return `Could not find an event matching "${eventIdentifier}".`;
+    }
+
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: event.id,
+      sendUpdates: notifyAttendees ? "all" : "none"
+    });
+
+    return `Cancelled event: ${formatEventSummary(event)}${notifyAttendees ? " and notified attendees." : "."}`;
+  } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
+    console.error("Error cancelling calendar event:", error);
+    return "Error cancelling calendar event. Please check your permissions.";
   }
-
-  await calendar.events.delete({
-    calendarId: "primary",
-    eventId: event.id,
-    sendUpdates: notifyAttendees ? "all" : "none"
-  });
-
-  return `Cancelled event: ${formatEventSummary(event)}${notifyAttendees ? " and notified attendees." : "."}`;
 }
 
 export async function addAttendeesToEvent(
@@ -235,34 +295,44 @@ export async function addAttendeesToEvent(
   if (!attendeeEmails || attendeeEmails.length === 0) {
     return "Please provide at least one attendee email.";
   }
+  try {
+    const calendar = getCalendarClient();
+    const event = await resolveEventByIdentifier(eventIdentifier);
 
-  const calendar = getCalendarClient();
-  const event = await resolveEventByIdentifier(eventIdentifier);
+    console.log({event, eventIdentifier})
 
-  if (!event || !event.id) {
-    return `Could not find an event matching "${eventIdentifier}".`;
-  }
-
-  const existingAttendees = event.attendees || [];
-  const newAttendees = attendeeEmails.map((email) => ({ email }));
-
-  const mergedAttendees = [...existingAttendees];
-  for (const attendee of newAttendees) {
-    if (!mergedAttendees.some((existing) => existing.email === attendee.email)) {
-      mergedAttendees.push(attendee);
+    if (!event || !event.id) {
+      return `Could not find an event matching "${eventIdentifier}".`;
     }
+
+    const existingAttendees = event.attendees || [];
+    const newAttendees = attendeeEmails.map((email) => ({ email }));
+
+    const mergedAttendees = [...existingAttendees];
+    for (const attendee of newAttendees) {
+      if (!mergedAttendees.some((existing) => existing.email === attendee.email)) {
+        mergedAttendees.push(attendee);
+      }
+    }
+
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: event.id,
+      requestBody: {
+        attendees: mergedAttendees
+      },
+      sendUpdates: notifyAttendees ? "all" : "none"
+    });
+
+    return `Added attendees to ${formatEventSummary(event)}: ${attendeeEmails.join(", ")}${notifyAttendees ? " (notifications sent)." : "."}`;
+  } catch (error) {
+    console.log('addAttendee',{error})
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
+    console.error("Error adding attendees:", error);
+    return "Error adding attendees. Please check your permissions.";
   }
-
-  await calendar.events.patch({
-    calendarId: "primary",
-    eventId: event.id,
-    requestBody: {
-      attendees: mergedAttendees
-    },
-    sendUpdates: notifyAttendees ? "all" : "none"
-  });
-
-  return `Added attendees to ${formatEventSummary(event)}: ${attendeeEmails.join(", ")}${notifyAttendees ? " (notifications sent)." : "."}`;
 }
 
 export async function sendNotificationToAttendees(
@@ -273,27 +343,34 @@ export async function sendNotificationToAttendees(
   if (!message) {
     return "Notification message cannot be empty.";
   }
+  try {
+    const calendar = getCalendarClient();
+    const event = await resolveEventByIdentifier(eventIdentifier);
 
-  const calendar = getCalendarClient();
-  const event = await resolveEventByIdentifier(eventIdentifier);
+    if (!event || !event.id) {
+      return `Could not find an event matching "${eventIdentifier}".`;
+    }
 
-  if (!event || !event.id) {
-    return `Could not find an event matching "${eventIdentifier}".`;
+    const timestamp = new Date().toISOString();
+    const appendedDescription = `${event.description || ""}\n\nNotification (${timestamp}${subject ? ` - ${subject}` : ""}):\n${message}`.trim();
+
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: event.id,
+      requestBody: {
+        description: appendedDescription
+      },
+      sendUpdates: "all"
+    });
+
+    return `Sent notification to attendees of ${formatEventSummary(event)}.`;
+  } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
+    console.error("Error sending notification:", error);
+    return "Error sending notification. Please check your permissions.";
   }
-
-  const timestamp = new Date().toISOString();
-  const appendedDescription = `${event.description || ""}\n\nNotification (${timestamp}${subject ? ` - ${subject}` : ""}):\n${message}`.trim();
-
-  await calendar.events.patch({
-    calendarId: "primary",
-    eventId: event.id,
-    requestBody: {
-      description: appendedDescription
-    },
-    sendUpdates: "all"
-  });
-
-  return `Sent notification to attendees of ${formatEventSummary(event)}.`;
 }
 
 export interface UpdateCalendarEventInput {
@@ -321,39 +398,47 @@ export async function updateCalendarEventDetails(
     notifyAttendees = true
   } = input;
 
-  const calendar = getCalendarClient();
-  const event = await resolveEventByIdentifier(eventIdentifier);
+  try {
+    const calendar = getCalendarClient();
+    const event = await resolveEventByIdentifier(eventIdentifier);
 
-  if (!event || !event.id) {
-    return `Could not find an event matching "${eventIdentifier}".`;
+    if (!event || !event.id) {
+      return `Could not find an event matching "${eventIdentifier}".`;
+    }
+
+    const requestBody: calendar_v3.Schema$Event = {};
+
+    if (title) requestBody.summary = title;
+    if (startTime) {
+      requestBody.start = { dateTime: startTime, timeZone: "UTC" };
+    }
+    if (endTime) {
+      requestBody.end = { dateTime: endTime, timeZone: "UTC" };
+    }
+    if (location) requestBody.location = location;
+    if (description) requestBody.description = description;
+    if (attendeeEmails && attendeeEmails.length > 0) {
+      requestBody.attendees = attendeeEmails.map((email) => ({ email }));
+    }
+
+    if (Object.keys(requestBody).length === 0) {
+      return "No updates were provided.";
+    }
+
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: event.id,
+      requestBody,
+      sendUpdates: notifyAttendees ? "all" : "none"
+    });
+
+    return `Updated event: ${formatEventSummary(event)}.`;
+  } catch (error) {
+    if (isInvalidGrantError(error)) {
+      return getCalendarReauthMessage();
+    }
+    console.error("Error updating calendar event:", error);
+    return "Error updating calendar event. Please check your permissions.";
   }
-
-  const requestBody: calendar_v3.Schema$Event = {};
-
-  if (title) requestBody.summary = title;
-  if (startTime) {
-    requestBody.start = { dateTime: startTime, timeZone: "UTC" };
-  }
-  if (endTime) {
-    requestBody.end = { dateTime: endTime, timeZone: "UTC" };
-  }
-  if (location) requestBody.location = location;
-  if (description) requestBody.description = description;
-  if (attendeeEmails && attendeeEmails.length > 0) {
-    requestBody.attendees = attendeeEmails.map((email) => ({ email }));
-  }
-
-  if (Object.keys(requestBody).length === 0) {
-    return "No updates were provided.";
-  }
-
-  await calendar.events.patch({
-    calendarId: "primary",
-    eventId: event.id,
-    requestBody,
-    sendUpdates: notifyAttendees ? "all" : "none"
-  });
-
-  return `Updated event: ${formatEventSummary(event)}.`;
 }
 

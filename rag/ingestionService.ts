@@ -151,7 +151,7 @@ export class IngestionService {
     const dimension = await embeddingService.getEmbeddingDimension();
     console.log(`  → Embedding dimension: ${dimension}`);
     
-    // Initialize Pinecone index
+    // Initialize vector store (Pinecone or Qdrant)
     await vectorStore.initializeIndex(dimension);
     
     console.log("✅ RAG system initialized");

@@ -34,6 +34,13 @@ TOOL SELECTION GUIDE:
   - notify_event_attendees: Send updates/notifications to guests
   - update_calendar_event: Modify time, location, description, or attendees
 
+4. **Jira tools** - Track engineering work:
+  - create_jira_issue: Open tickets with ownership and metadata
+  - update_jira_issue: Update issue fields
+  - list_jira_issues: List issues by user/status/sprint
+  - list_jira_issues_all: List issues for all users by status/sprint
+  - jira_issue_counts: Count issues by user/status
+
 Rules:
 - ALWAYS check company knowledge base FIRST for company-related questions
 - Use web search for current events and public information
@@ -57,9 +64,15 @@ import {
 import { webSearchTool } from "../tools/searchTool";
 import { knowledgeBaseTool } from "../tools/knowledgeBaseTool";
 import { ingestionService } from "../rag/ingestionService";
+import { createJiraIssueTool, updateJiraIssueTool, listJiraIssuesTool, listJiraIssuesAllTool, jiraIssueCountsTool } from "../tools/jiraTool";
 
 const tools = [
   knowledgeBaseTool,        // Company knowledge base (RAG)
+  createJiraIssueTool,
+  updateJiraIssueTool,
+  listJiraIssuesTool,
+  listJiraIssuesAllTool,
+  jiraIssueCountsTool,
   getUpcomingEventsTool,    // Calendar tools
   getEventsForDateTool,
   createEventTool,
@@ -71,7 +84,7 @@ const tools = [
 ];
 
 const llm = new ChatOpenAI({
-  model: process.env.OPENAI_MODEL || "gpt-4o",
+  model: process.env.OPENAI_MODEL || process.env.DEFAULT_MODEL || "gpt-5-mini",
   temperature: 0
 }).bindTools(tools);
 
@@ -114,15 +127,30 @@ async function toolExecutorNode(state: typeof AgentState.State): Promise<{ messa
 
   const toolCalls = lastMessage.tool_calls as Array<{ name: string; args: any; id: string }>;
   const toolResults: ToolMessage[] = [];
-
+  console.log('toolCalls');
   for (const toolCall of toolCalls) {
     const toolName = toolCall.name;
     const toolInput = toolCall.args;
-    let resultStr: string;
+    let resultStr = "";
 
     try {
       if (toolName === "query_company_knowledge") {
         const res = await knowledgeBaseTool.invoke(toolInput);
+        resultStr = typeof res === "string" ? res : JSON.stringify(res);
+      } else if (toolName === "create_jira_issue") {
+        const res = await createJiraIssueTool.invoke(toolInput);
+        resultStr = typeof res === "string" ? res : JSON.stringify(res);
+      } else if (toolName === "update_jira_issue") {
+        const res = await updateJiraIssueTool.invoke(toolInput);
+        resultStr = typeof res === "string" ? res : JSON.stringify(res);
+      } else if (toolName === "list_jira_issues") {
+        const res = await listJiraIssuesTool.invoke(toolInput);
+        resultStr = typeof res === "string" ? res : JSON.stringify(res);
+      } else if (toolName === "list_jira_issues_all") {
+        const res = await listJiraIssuesAllTool.invoke(toolInput);
+        resultStr = typeof res === "string" ? res : JSON.stringify(res);
+      } else if (toolName === "jira_issue_counts") {
+        const res = await jiraIssueCountsTool.invoke(toolInput);
         resultStr = typeof res === "string" ? res : JSON.stringify(res);
       } else if (toolName === "get_upcoming_events") {
         const res = await getUpcomingEventsTool.invoke({});
@@ -153,7 +181,7 @@ async function toolExecutorNode(state: typeof AgentState.State): Promise<{ messa
       } else {
         resultStr = "Unknown tool";
       }
-      console.log('resultStr', resultStr);
+      //console.log('resultStr', resultStr);
     } catch (error) {
       resultStr = `Error executing tool: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -172,7 +200,7 @@ async function toolExecutorNode(state: typeof AgentState.State): Promise<{ messa
 function shouldContinue(state: typeof AgentState.State): "tools" | "end" {
   const messages = state.messages;
   const lastMessage = messages[messages.length - 1] as AIMessage | undefined;
-
+console.log('lastMessage', lastMessage);
   if (lastMessage && "tool_calls" in lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
     return "tools";
   }
