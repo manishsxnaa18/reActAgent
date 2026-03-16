@@ -98,7 +98,18 @@ const evaluatorLlm = new ChatOpenAI({
 type RetrievalDecision = "retrieve" | "skip";
 type ContextVerdict = "good" | "bad";
 
+function isDocumentQuestion(question: string): boolean {
+  const q = question.toLowerCase();
+  return q.includes("pdf") || q.includes("document") || q.includes("file") || q.includes("attachment");
+}
+
 async function decideRetrieval(question: string): Promise<RetrievalDecision> {
+  // Always retrieve for questions that clearly refer to an uploaded
+  // document / file so that RAG context from ingested PDFs is used.
+  if (isDocumentQuestion(question)) {
+    return "retrieve";
+  }
+
   const decisionPrompt = `
 Decide if the question needs company knowledge base retrieval.
 Return only one word: retrieve or skip.

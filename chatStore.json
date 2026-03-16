@@ -1,0 +1,110 @@
+{
+  "users": {
+    "9799174594@demo.app": {
+      "folders": [
+        {
+          "id": "folder-1773479816159-6ge4xy",
+          "name": "class 5",
+          "createdAt": "2026-03-14T09:16:56.158Z",
+          "updatedAt": "2026-03-14T09:16:56.158Z"
+        }
+      ],
+      "sessions": [
+        {
+          "id": "session-1773479782311-i55s0j",
+          "title": "New chat",
+          "folderId": null,
+          "threadId": "api-session-1773479782311",
+          "createdAt": "2026-03-14T09:16:22.311Z",
+          "updatedAt": "2026-03-14T09:16:22.311Z",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi, I am your reAct Agent assistant. Ask me anything."
+            }
+          ]
+        },
+        {
+          "id": "session-1773479782312-yyh5ab",
+          "title": "dummy",
+          "folderId": "folder-1773479816159-6ge4xy",
+          "threadId": "api-session-1773479782312",
+          "createdAt": "2026-03-14T09:16:22.312Z",
+          "updatedAt": "2026-03-14T10:56:30.057Z",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi, I am your reAct Agent assistant. Ask me anything."
+            },
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": "Hello again! How can I assist you today?"
+            },
+            {
+              "role": "user",
+              "content": "what is the jsipur temperature"
+            },
+            {
+              "role": "assistant",
+              "content": "The temperature in Jaipur on March 14, 2026, is expected to range between approximately 16.4°C to 31.6°C (or 68°F to 93°F). The weather is generally hot, and there shouldn't be any rainy days during this time."
+            },
+            {
+              "role": "user",
+              "content": "📎 Form 16-2024-2025.pdf\n\ncan you tell me  the Amount of tax deposited / remitted"
+            },
+            {
+              "role": "assistant",
+              "content": "The document states that the total amount of tax deposited/remitted is Rs. 162,650.00."
+            }
+          ]
+        },
+        {
+          "id": "session-1773488771698-h4zgbx",
+          "title": "New chat",
+          "folderId": "folder-1773479816159-6ge4xy",
+          "threadId": "api-session-1773488771697",
+          "createdAt": "2026-03-14T11:46:11.697Z",
+          "updatedAt": "2026-03-14T11:46:11.697Z",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi, I am your reAct Agent assistant. Ask me anything."
+            }
+          ]
+        },
+        {
+          "id": "session-1773488772551-qup5pe",
+          "title": "New chat",
+          "folderId": "folder-1773479816159-6ge4xy",
+          "threadId": "api-session-1773488772551",
+          "createdAt": "2026-03-14T11:46:12.551Z",
+          "updatedAt": "2026-03-14T11:46:12.551Z",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi, I am your reAct Agent assistant. Ask me anything."
+            }
+          ]
+        },
+        {
+          "id": "session-1773488802126-3khx7a",
+          "title": "New chat",
+          "folderId": null,
+          "threadId": "api-session-1773488802126",
+          "createdAt": "2026-03-14T11:46:42.126Z",
+          "updatedAt": "2026-03-14T11:46:42.126Z",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "Hi, I am your reAct Agent assistant. Ask me anything."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -69,6 +69,42 @@ async function writeMultipartToTemp(file, extHint) {
     await fs_1.default.promises.writeFile(tempPath, buffer);
     return tempPath;
 }
+const CHAT_STORE_PATH = process.env.CHAT_STORE_PATH || path_1.default.join(process.cwd(), "chatStore.json");
+let chatStoreCache = null;
+async function loadChatStore() {
+    if (chatStoreCache) {
+        return chatStoreCache;
+    }
+    try {
+        const raw = await fs_1.default.promises.readFile(CHAT_STORE_PATH, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && parsed.users) {
+            chatStoreCache = parsed;
+            return parsed;
+        }
+    }
+    catch {
+        // ignore and fall through to default
+    }
+    const empty = { users: {} };
+    chatStoreCache = empty;
+    return empty;
+}
+async function saveChatStore(store) {
+    chatStoreCache = store;
+    const dir = path_1.default.dirname(CHAT_STORE_PATH);
+    await fs_1.default.promises.mkdir(dir, { recursive: true }).catch(() => undefined);
+    await fs_1.default.promises.writeFile(CHAT_STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
+}
+function getUserBucket(store, userId) {
+    if (!store.users[userId]) {
+        store.users[userId] = {
+            folders: [],
+            sessions: []
+        };
+    }
+    return store.users[userId];
+}
 app.setErrorHandler(async (error, _request, reply) => {
     app.log.error(error);
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -97,7 +133,21 @@ function registerRoutes() {
         return ok({
             server: "fastify",
             endpoints: {
-                agent: ["POST /api/agent/message", "POST /api/agent/decision"],
+                agent: [
+                    "POST /api/agent/message",
+                    "POST /api/agent/decision",
+                    "POST /api/agent/file-query"
+                ],
+                chat: [
+                    "POST /api/chat/folders/create",
+                    "POST /api/chat/folders/update",
+                    "POST /api/chat/folders/list",
+                    "POST /api/chat/sessions/create",
+                    "POST /api/chat/sessions/update",
+                    "POST /api/chat/sessions/get",
+                    "POST /api/chat/sessions/list",
+                    "POST /api/chat/sessions/save-messages"
+                ],
                 rag: ["POST /api/rag/initialize", "POST /api/rag/query", "POST /api/rag/ingest/file", "POST /api/rag/ingest/directory"],
                 search: ["POST /api/search/web"],
                 calendar: [
@@ -124,6 +174,192 @@ function registerRoutes() {
             }
         });
     });
+    app.post("/api/chat/folders/create", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        const name = body.name?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        if (!name) {
+            throw new Error("name is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const now = new Date().toISOString();
+        const folder = {
+            id: `folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            createdAt: now,
+            updatedAt: now
+        };
+        user.folders.push(folder);
+        await saveChatStore(store);
+        return ok({ folder });
+    });
+    app.post("/api/chat/folders/update", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        const folderId = body.folderId?.trim();
+        const name = body.name?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        if (!folderId) {
+            throw new Error("folderId is required");
+        }
+        if (!name) {
+            throw new Error("name is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const folder = user.folders.find((f) => f.id === folderId);
+        if (!folder) {
+            throw new Error("Folder not found");
+        }
+        folder.name = name;
+        folder.updatedAt = new Date().toISOString();
+        await saveChatStore(store);
+        return ok({ folder });
+    });
+    app.post("/api/chat/folders/list", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        return ok({ folders: user.folders });
+    });
+    app.post("/api/chat/sessions/create", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const title = (body.title && String(body.title).trim()) || "New chat";
+        const folderId = body.folderId?.trim() || null;
+        const threadId = (body.threadId && String(body.threadId).trim()) || `api-session-${Date.now()}`;
+        const messages = Array.isArray(body.messages) ? body.messages : [];
+        const now = new Date().toISOString();
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        if (folderId && !user.folders.find((f) => f.id === folderId)) {
+            throw new Error("folderId does not exist for this user");
+        }
+        const session = {
+            id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            title,
+            folderId,
+            threadId,
+            createdAt: now,
+            updatedAt: now,
+            messages
+        };
+        user.sessions.push(session);
+        await saveChatStore(store);
+        return ok({ session });
+    });
+    app.post("/api/chat/sessions/update", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        const sessionId = body.sessionId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        if (!sessionId) {
+            throw new Error("sessionId is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const session = user.sessions.find((s) => s.id === sessionId);
+        if (!session) {
+            throw new Error("Session not found");
+        }
+        if (typeof body.title !== "undefined") {
+            const title = String(body.title).trim();
+            if (title) {
+                session.title = title;
+            }
+        }
+        if (body.hasOwnProperty("folderId")) {
+            const folderId = body.folderId === null ? null : body.folderId?.trim() || null;
+            if (folderId && !user.folders.find((f) => f.id === folderId)) {
+                throw new Error("folderId does not exist for this user");
+            }
+            session.folderId = folderId;
+        }
+        session.updatedAt = new Date().toISOString();
+        await saveChatStore(store);
+        return ok({ session });
+    });
+    app.post("/api/chat/sessions/get", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        const sessionId = body.sessionId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        if (!sessionId) {
+            throw new Error("sessionId is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const session = user.sessions.find((s) => s.id === sessionId);
+        if (!session) {
+            throw new Error("Session not found");
+        }
+        return ok({ session });
+    });
+    app.post("/api/chat/sessions/list", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const includeMessages = Boolean(body.includeMessages);
+        const sessions = includeMessages
+            ? user.sessions
+            : user.sessions.map((s) => ({
+                id: s.id,
+                title: s.title,
+                folderId: s.folderId || null,
+                threadId: s.threadId,
+                createdAt: s.createdAt,
+                updatedAt: s.updatedAt
+            }));
+        return ok({
+            folders: user.folders,
+            sessions
+        });
+    });
+    app.post("/api/chat/sessions/save-messages", async (request) => {
+        const body = (request.body || {});
+        const userId = body.userId?.trim();
+        const sessionId = body.sessionId?.trim();
+        if (!userId) {
+            throw new Error("userId is required");
+        }
+        if (!sessionId) {
+            throw new Error("sessionId is required");
+        }
+        if (!Array.isArray(body.messages)) {
+            throw new Error("messages must be an array");
+        }
+        const store = await loadChatStore();
+        const user = getUserBucket(store, userId);
+        const session = user.sessions.find((s) => s.id === sessionId);
+        if (!session) {
+            throw new Error("Session not found");
+        }
+        session.messages = body.messages;
+        session.updatedAt = new Date().toISOString();
+        await saveChatStore(store);
+        return ok({ session });
+    });
     app.post("/api/agent/message", async (request) => {
         const body = (request.body || {});
         const threadId = body.threadId?.trim() || "api-session-1";
@@ -141,6 +377,54 @@ function registerRoutes() {
             response: responseText,
             requiresApproval: responseText.toLowerCase().includes("reply with \"approve\"")
         });
+    });
+    app.post("/api/agent/file-query", async (request) => {
+        const file = await request.file();
+        if (!file) {
+            throw new Error("file is required (multipart/form-data)");
+        }
+        const fields = file.fields || {};
+        const getFieldValue = (name) => {
+            const field = fields[name];
+            if (!field)
+                return undefined;
+            if (Array.isArray(field)) {
+                const first = field[0];
+                if (first && typeof first === "object" && "value" in first) {
+                    return first.value;
+                }
+                return first;
+            }
+            if (typeof field === "object" && field !== null && "value" in field) {
+                return field.value;
+            }
+            return field;
+        };
+        const rawThreadId = getFieldValue("threadId");
+        const rawMessage = getFieldValue("message");
+        const threadId = (rawThreadId && String(rawThreadId).trim()) || "api-session-1";
+        const message = rawMessage && String(rawMessage).trim();
+        if (!message) {
+            throw new Error("message is required");
+        }
+        const tempPath = await writeMultipartToTemp(file);
+        try {
+            await ingestionService_1.ingestionService.ingestDocument(tempPath);
+            const invokeConfig = {
+                configurable: { thread_id: threadId }
+            };
+            const result = await agentGraphCRAGSelfRAG_1.graph.invoke({ messages: [new messages_1.HumanMessage(message)] }, invokeConfig);
+            const responseText = getAssistantText(result);
+            return ok({
+                threadId,
+                response: responseText,
+                source: "file",
+                fileName: file.filename || null
+            });
+        }
+        finally {
+            await fs_1.default.promises.unlink(tempPath).catch(() => undefined);
+        }
     });
     app.post("/api/agent/decision", async (request) => {
         const body = (request.body || {});

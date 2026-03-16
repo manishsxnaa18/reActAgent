@@ -87,7 +87,7 @@ export async function transcribeAudio(filePath: string): Promise<string> {
   return data.text?.trim() || "";
 }
 
-export async function synthesizeSpeech(text: string, language: string): Promise<string> {
+export async function synthesizeSpeech(text: string, language: string, voice?: string): Promise<string> {
   ensureApiKey();
   const outputPath = createTempAudioPath("mp3");
 
@@ -99,7 +99,7 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
     },
     body: JSON.stringify({
       model: TTS_MODEL,
-      voice: TTS_VOICE,
+      voice: voice || TTS_VOICE,
       input: text,
       format: "mp3",
       language
