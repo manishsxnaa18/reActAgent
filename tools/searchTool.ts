@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../loadEnv";
 import { TavilySearch } from "@langchain/tavily";
 import { tool } from "@langchain/core/tools";
 

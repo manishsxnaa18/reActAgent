@@ -9,7 +9,7 @@
  * 4. Execute tool → Generate answer
  */
 
-import "dotenv/config";
+import "./loadEnv";
 import readline from "readline";
 import { ChatOpenAI } from "@langchain/openai";
 import { TavilySearch } from "@langchain/tavily";

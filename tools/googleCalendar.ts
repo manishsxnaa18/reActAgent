@@ -2,7 +2,7 @@
  * Google Calendar Tool
  * Allows the agent to read events from user's Google Calendar
  */
-import "dotenv/config";
+import "../loadEnv";
 import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 

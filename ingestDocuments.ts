@@ -3,7 +3,7 @@
  * Command-line interface for uploading and processing company documents
  */
 
-import "dotenv/config";
+import "./loadEnv";
 import readline from "readline";
 import * as fs from "fs";
 import * as path from "path";

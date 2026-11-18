@@ -3,7 +3,7 @@
  * Checks that all required dependencies and environment variables are configured
  */
 
-import "dotenv/config";
+import "./loadEnv";
 import * as fs from "fs";
 
 interface CheckResult {

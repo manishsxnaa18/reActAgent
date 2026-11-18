@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadEnv";
 import readline from "readline";
 import { graph } from "./graph/agentGraphCRAGSelfRAG";
 import { HumanMessage, BaseMessage } from "@langchain/core/messages";
